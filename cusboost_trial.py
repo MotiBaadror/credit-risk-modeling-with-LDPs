@@ -14,7 +14,7 @@ from sklearn.model_selection import StratifiedKFold
 import seaborn as sns
 
 
-dataset = 'credit_data.csv'
+dataset = '../data/data_fs.csv'
 print("dataset : ", dataset)
 df = pd.read_csv(dataset)
 
@@ -31,7 +31,7 @@ print("Checking account: ", df['Checking account'].unique())
 # print("Credit amount: ", df['Credit amount'].unique())
 # print("Duration: ", df['Duration'].unique())
 print("Purpose: ", df['Purpose'].unique())
-print("Risk: ", df['Risk'].unique())
+# print("Risk: ", df['Risk'].unique())
 
 
 # One hot encoding function
@@ -70,9 +70,10 @@ df['Credit amount'] = np.log(df['Credit amount'])
 
 
 # Map outputs to 0 (good) or 1 (bad)
-df = df.merge(pd.get_dummies(df.Risk, prefix='Risk'), left_index=True, right_index=True)
-del df['Risk']
-del df['Risk_good']
+# df = df.merge(pd.get_dummies(df.Risk, prefix='Risk'), left_index=True, right_index=True)
+# del df['Risk']
+# del df['Risk_good']
+df.to_csv('../data/features_data.csv', index=False)
 
 # Separate X and y of dataset
 X = np.array(df.drop(['Risk_bad'], axis=1))
