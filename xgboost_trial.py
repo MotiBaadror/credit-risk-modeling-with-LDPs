@@ -8,14 +8,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import math
 import seaborn as sns
-from xgboost import XGBClassifier
+from xgboost import XGBRegressor
 from scipy import interp
 from sklearn.preprocessing import LabelEncoder, Normalizer
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import roc_curve, precision_recall_curve, roc_auc_score, average_precision_score, matthews_corrcoef, f1_score, accuracy_score, balanced_accuracy_score, confusion_matrix
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.metrics import mean_absolute_error,mean_squared_error
 from sklearn.model_selection import StratifiedKFold, GridSearchCV, train_test_split
 
-dataset = 'credit_data.csv'
+dataset = '../data/data_fs.csv'
 print("dataset : ", dataset)
 df = pd.read_csv(dataset)
 
@@ -55,25 +55,20 @@ del df['Age_cat']
 # Scale credit amount by natural log function
 df['Credit amount'] = np.log(df['Credit amount'])
 
-# Map outputs to 0 (good) or 1 (bad)
-df = df.merge(pd.get_dummies(df.Risk, prefix='Risk'), left_index=True, right_index=True)
-del df['Risk']
-del df['Risk_good']
-# print(df.head())
 
 
 from bayes_opt import BayesianOptimization
 
 # Separate X and y of dataset
-X = np.array(df.drop(['Risk_bad'], axis=1))
-y = np.array(df['Risk_bad'])
+X = np.array(df.drop(['Credit amount'], axis=1))
+y = np.array(df['Credit amount'])
 
 # Split train and test datasets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
 
 # Test on unseen data
-xgboosted = XGBClassifier(learning_rate=0.2, 
+xgboosted = XGBRegressor(learning_rate=0.2, 
                           gamma=5, 
                           n_estimators=1000, # int
                           max_depth=3, # int
@@ -84,43 +79,23 @@ xgboosted = XGBClassifier(learning_rate=0.2,
 print("XGBoosted :", xgboosted)
 
 xgboosted.fit(X_train, y_train)
-predictions = xgboosted.predict_proba(X_test)
 y_pred = xgboosted.predict(X_test)
 
-# Evaluate with AUC and MCC
-auc = roc_auc_score(y_test, predictions[:, 1])
-mcc = matthews_corrcoef(y_test, y_pred)
-print("AUC :", auc)
-print("MCC :", mcc)
-
-# Other metrics
-acc = accuracy_score(y_test, y_pred)
-print("Accuracy :", acc)
-bal_acc = balanced_accuracy_score(y_test, y_pred)
-print("Balanced accuracy :", bal_acc)
+# Evaluate with mae and mse
+mae = mean_absolute_error(y_test, y_pred)
+mse = mean_squared_error(y_test, y_pred)
+print("mae :", mae)
+print("mse :", mse)
 
 
-# Create confusion matrix
-matrix = confusion_matrix(y_test, y_pred)
-values = np.unique(y_pred)
-sns.heatmap(matrix, square=True, annot=True, fmt='d', cbar=False, xticklabels=values, yticklabels=values)
-plt.xlabel('Truth')
-plt.ylabel('Predicted')
-
-
-# Create XGBoost model with Bayesian optimization
-skf = StratifiedKFold(n_splits=5, shuffle=True)
-
-all_auc = []
-all_mcc = []
-all_acc = []
-all_bal_acc = []
+all_mae = []
+all_mse = []
 
 def xgb_function(learning_rate, gamma, min_child_weight, subsample, colsample_bytree, scale_pos_weight):
     """
-    Function with XGBoost parameters that returns AUC on train and test set
+    Function with XGBoost parameters that returns mae on train and test set
     """
-    xgbclf = XGBClassifier(learning_rate=learning_rate, 
+    xgbclf = XGBRegressor(learning_rate=learning_rate, 
                            gamma=gamma, 
                            n_estimators=1000, 
                            max_depth=3, 
@@ -130,33 +105,25 @@ def xgb_function(learning_rate, gamma, min_child_weight, subsample, colsample_by
                            scale_pos_weight=scale_pos_weight)
     
     
-    for train_index, val_index in skf.split(X_train, y_train):
+    for train_index, val_index in [[np.arange(len(X_train)), np.arange(len(y_train))]]:
         X_train_fun = X_train[train_index]
         y_train_fun = y_train[train_index]
         X_val = X_train[val_index]
         y_val = y_train[val_index]
 
         xgbclf.fit(X_train_fun, y_train_fun)
-        predictions = xgbclf.predict_proba(X_val)
         y_pred = xgbclf.predict(X_val)
     
-        auc = roc_auc_score(y_val, predictions[:, 1])
-        mcc = matthews_corrcoef(y_val, y_pred)
-        acc = accuracy_score(y_val, y_pred)
-        bal_acc = balanced_accuracy_score(y_val, y_pred)
-        
-        all_auc.append(auc)
-        all_mcc.append(mcc)
-        all_acc.append(acc)
-        all_bal_acc.append(bal_acc)
-    
-    
-    mean_auc = np.mean(np.array(all_auc))
-    mean_mcc = np.mean(np.array(all_mcc))
-    mean_acc = np.mean(np.array(all_acc))
-    mean_bal_acc = np.mean(np.array(all_bal_acc))
+        mae = mean_absolute_error(y_val, y_pred)
+        mse = mean_squared_error(y_val, y_pred)
 
-    return mean_auc
+        all_mae.append(mae)
+        all_mse.append(mse)
+    
+    
+    mean_mae = np.mean(np.array(all_mae))
+    mean_mse = np.mean(np.array(all_mse))
+    return mean_mae
     
 # Parameter bounds
 pbounds = {'learning_rate': (0.01, 0.2), 
@@ -166,5 +133,5 @@ pbounds = {'learning_rate': (0.01, 0.2),
            'colsample_bytree': (0.7, 1.0), 
            'scale_pos_weight': (0.5, 1.0)}
 optimizer = BayesianOptimization(f=xgb_function, pbounds=pbounds, verbose=2)
-optimizer.maximize(init_points=2, n_iter=3)
+optimizer.maximize(init_points=2, n_iter=10)
 print("Optimizer :", optimizer.max)
