@@ -123,7 +123,7 @@ def xgb_function(learning_rate, gamma, min_child_weight, subsample, colsample_by
     
     mean_mae = np.mean(np.array(all_mae))
     mean_mse = np.mean(np.array(all_mse))
-    return mean_mae
+    return mean_mse
     
 # Parameter bounds
 pbounds = {'learning_rate': (0.01, 0.2), 
