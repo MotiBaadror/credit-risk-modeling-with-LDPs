@@ -15,7 +15,7 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn.metrics import mean_absolute_error,mean_squared_error
 from sklearn.model_selection import StratifiedKFold, GridSearchCV, train_test_split
 
-dataset = '../data/data_fs.csv'
+dataset = '/data/data_fs.csv'
 print("dataset : ", dataset)
 df = pd.read_csv(dataset)
 

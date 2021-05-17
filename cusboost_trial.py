@@ -15,7 +15,7 @@ from sklearn.model_selection import StratifiedKFold
 import seaborn as sns
 
 
-dataset = '../data/data_fs.csv'
+dataset = 'data/data_fs.csv'
 print("dataset : ", dataset)
 df = pd.read_csv(dataset)
 
